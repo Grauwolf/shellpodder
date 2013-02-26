@@ -1,0 +1,38 @@
+#!/bin/bash
+
+#===============================================================================
+# DESCRIPTION:  A simple podcast fetcher based on http://lincgeek.org/bashpodder
+# AUTHOR:       Farhad Shahbazi <farhad@shahbazi.at>
+#===============================================================================
+
+podcastdir="/srv/data/podcasts"
+mkdir -p $podcastdir
+
+if [ -f "${podcastdir}/downloaded.tmp" ] ; then
+    rm "${podcastdir}/downloaded.tmp"
+fi
+
+while read line; do
+    podcasturl=$(echo "$line" | cut -d' ' -f1)
+    files=$(wget -q -O- "$podcasturl" | grep -o '<enclosure.*url="[^"]*' | grep -o '[^"]*$')
+    for file in $files; do
+        podcastname=$(echo "$line" | cut -d' ' -f2)
+        filename=$(echo "$file" | awk -F/ '{print $NF}')
+        echo $file >> "${podcastdir}/downloaded.tmp"
+        mkdir -p $podcastdir/$podcastname
+        if ! grep "$file" $podcastdir/downloaded.log &> /dev/null ; then
+            #aria2c -t 30 -c -d "$podcastdir/$podcastname" -o "$filename" "$file"
+            wget -t 10 -c -O "$podcastdir/$podcastname/$filename" "$file"
+            echo "$podcastname/$filename" >> $podcastdir/$(date +%Y-%m-%d).m3u.tmp
+        fi
+    done
+done < $podcastdir/urls
+
+if [ -f "$podcastdir/$(date +%Y-%m-%d).m3u.tmp" ] ; then
+    tac "$podcastdir/$(date +%Y-%m-%d).m3u.tmp" >> "$podcastdir/$(date +%Y-%m-%d).m3u"
+    rm "$podcastdir/$(date +%Y-%m-%d).m3u.tmp"
+fi
+
+cat $podcastdir/downloaded.log >> $podcastdir/downloaded.tmp
+sort -u $podcastdir/downloaded.tmp | uniq > $podcastdir/downloaded.log
+rm $podcastdir/downloaded.tmp
