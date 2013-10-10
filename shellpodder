@@ -13,6 +13,9 @@ if [ -f "${podcastdir}/downloaded.tmp" ] ; then
 fi
 
 while read line; do
+    if grep -E "^(#)" ; then
+        continue
+    fi
     podcasturl=$(echo "$line" | cut -d' ' -f1)
     files=$(wget -q -O- "$podcasturl" | grep -o '<enclosure.*url="[^"]*' | grep -o '[^"]*$')
     for file in $files; do
@@ -36,3 +39,31 @@ fi
 cat $podcastdir/downloaded.log >> $podcastdir/downloaded.tmp
 sort -u $podcastdir/downloaded.tmp | uniq > $podcastdir/downloaded.log
 rm $podcastdir/downloaded.tmp
+
+
+# Delete files not listed in any playlist
+find $podcastdir -mindepth 2 -type f | sort | while read line
+do
+    file=$(echo $line | sed "s#${podcastdir}/##")
+    if grep "$file" ${podcastdir}/*.m3u > /dev/null
+    then
+        continue
+    else
+        rm -v "${podcastdir}/${file}"
+    fi
+done
+
+# Delete playlist entries where no file is available
+find $podcastdir -maxdepth 1 -type f -iname \*.m3u | sort \
+| while read playlist
+do
+    for file in $(cat $playlist)
+    do
+        if ! stat "$podcastdir/$file" > /dev/null 2>&1
+        then
+            file_escaped=$(echo $file | sed -e 's/[\/&]/\\&/g')
+            echo "deleting entry $file in $playlist"
+            sed -i "/$file_escaped/d" $playlist
+        fi
+    done
+done
