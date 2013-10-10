@@ -5,7 +5,12 @@
 # AUTHOR:       Farhad Shahbazi <farhad@shahbazi.at>
 #===============================================================================
 
-podcastdir="/srv/data/podcasts"
+podcastdir=""
+if [ -z $podcastdir ]
+then
+    echo "podcastdir is not set"
+    exit 1
+fi
 mkdir -p $podcastdir
 
 if [ -f "${podcastdir}/downloaded.tmp" ]
