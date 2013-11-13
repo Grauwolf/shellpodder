@@ -20,7 +20,7 @@ fi
 
 while read line
 do
-    if grep -E "^(#)"
+    if (echo $line | grep -E "^(#)")
     then
         continue
     fi
